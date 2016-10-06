@@ -1,0 +1,66 @@
+Changing And Recompiling Debian Packages
+========================================
+
+I'm going to use the example of gnome-terminal. It has a "feature" I find
+extremely irritating. Basically if you type into the terminal while your cursor
+is above the terminal window, it will hide your cursor. I would much rather
+have it permanently visible, but this is a compile-time option. It is, however,
+fairly easy to recompile the debian package with the necessary change.
+
+First you need to install the following packages with apt:
+
+    * debian-keyring - required to verify signatures when downloading source
+        packages
+    * devscripts - has all the stuff to build debian packages
+
+First you need to make sure you have all the build dependencies:
+
+    $ apt-get build-dep gnome-terminal
+
+Next you need the source package itself:
+
+    $ apt-get source gnome-terminal
+
+This created the `gnome-terminal-3.14.1/` folder when I ran it. Go into the
+`gnome-terminal-3.14.1/src` folder and edit the `terminal-screen.c` file. This
+is the diff between the old and new files:
+
+    $ $ diff terminal-screen.c.old terminal-screen.new
+    382c382
+    <   vte_terminal_set_mouse_autohide (terminal, TRUE);
+    ---
+    >   vte_terminal_set_mouse_autohide (terminal, FALSE);
+
+After having replaced the old file I added my changes to the change log:
+
+    $ dch --local thomas-autohide-off
+
+    gnome-terminal (3.14.1-1+deb8u1thomas-autohide-off1) UNRELEASED; urgency=medium
+
+      * Turns off autohiding of cursor. The default behavior is to hide the cursor
+        if it is over the terminal screen and you type anything into the terminal.
+        This is really annoying and this disables this "feature".
+       
+      * More info:
+
+            * https://bugzilla.gnome.org/show_bug.cgi?id=725342
+            * https://bugzilla.gnome.org/attachment.cgi?id=319222
+            * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=747244
+            * https://bugs.launchpad.net/ubuntu/+source/gnome-terminal/+bug/1565846
+
+     -- Thomas Nyberg <twn@twn-mintbox>  Thu, 06 Oct 2016 17:43:02 -0400
+
+This information can be seen later here:
+
+    $ zless /usr/share/doc/gnome-terminal/changelog.Debian.gz
+
+Finally run this in the `gnome-terminal-3.14.1/` foler:
+
+    $ dpkg-buildpackage -b -uc -us
+
+Note that the `-b` is important because we don't have the original source (we
+changed it) and the others tell it not to sign the packages.
+
+Finally install the new debs by doing 
+
+    $ sudo dpkg -i [...].deb
